@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movies 🎬 Bazaar</title>
+    <style>
+        /* Previous styles remain the same */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 30px 0;
+            color: #ffd700;
+            font-size: 2.5em;
+        }
+
+        .search-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        #searchInput {
+            padding: 10px 20px;
+            width: 60%;
+            max-width: 500px;
+            border-radius: 25px;
+            border: 2px solid #ffd700;
+            background-color: #2a2a2a;
+            color: #fff;
+            font-size: 1em;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #searchInput:focus {
+            border-color: #fff;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        #searchInput::placeholder {
+            color: #888;
+        }
+
+        .movies-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        /* Rest of previous styles remain the same */
+        .movie-card {
+            background: #2a2a2a;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .movie-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .movie-poster {
+            width: 100%;
+            height: 350px;
+            object-fit: cover;
+        }
+
+        .movie-info {
+            padding: 15px;
+        }
+
+        .movie-title {
+            font-size: 1.1em;
+            margin-bottom: 8px;
+            color: #ffd700;
+        }
+
+        .movie-rating {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .star {
+            color: #ffd700;
+            margin-right: 5px;
+        }
+
+        .movie-date {
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        .movie-overview {
+            font-size: 0.9em;
+            color: #ccc;
+            margin-top: 10px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #ff4444;
+            font-size: 1.2em;
+            width: 100%;
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 768px) {
+            .movies-container {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+            #searchInput {
+                width: 80%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Movies 🎬 Bazaar</h1>
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search for movies...">
+    </div>
+    <div class="container">
+        <div class="movies-container" id="moviesContainer"></div>
+    </div>
+
+    <script>
+        const API_KEY = '0fa2853e7c4d6c8f146aba861c5e4a06';
+        const API_URL = `https://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key=${API_KEY}`;
+        const SEARCH_API = `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=`;
+        const IMG_PATH = 'https://image.tmdb.org/t/p/w500';
+
+        const moviesContainer = document.getElementById('moviesContainer');
+        const searchInput = document.getElementById('searchInput');
+
+        // Get initial movies
+        getMovies(API_URL);
+
+        // Search functionality
+        searchInput.addEventListener('input', debounce((e) => {
+            const searchTerm = e.target.value.trim();
+            if(searchTerm) {
+                getMovies(SEARCH_API + encodeURIComponent(searchTerm));
+            } else {
+                getMovies(API_URL);
+            }
+        }, 500));
+
+        async function getMovies(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch movies');
+                }
+                const data = await response.json();
+                showMovies(data.results);
+            } catch (error) {
+                console.error('Error:', error);
+                moviesContainer.innerHTML = `<div class="error">Failed to load movies. Please try again later.</div>`;
+            }
+        }
+
+        function showMovies(movies) {
+            moviesContainer.innerHTML = '';
+
+            if(movies.length === 0) {
+                moviesContainer.innerHTML = `<div class="no-results">No movies found matching your search.</div>`;
+                return;
+            }
+
+            movies.forEach(movie => {
+                const { title, poster_path, vote_average, overview, release_date } = movie;
+
+                const movieEl = document.createElement('div');
+                movieEl.classList.add('movie-card');
+                
+                movieEl.innerHTML = `
+                    <img src="${poster_path ? IMG_PATH + poster_path : 'https://via.placeholder.com/500x750?text=No+Poster'}" 
+                         alt="${title}" 
+                         class="movie-poster">
+                    <div class="movie-info">
+                        <h3 class="movie-title">${title}</h3>
+                        <div class="movie-rating">
+                            <span class="star">⭐</span>
+                            <span class="${getRatingColor(vote_average)}">${vote_average.toFixed(1)}</span>
+                        </div>
+                        <span class="movie-date">${release_date || 'Date not available'}</span>
+                        <p class="movie-overview">${overview || 'No description available'}</p>
+                    </div>
+                `;
+
+                moviesContainer.appendChild(movieEl);
+            });
+        }
+
+        function getRatingColor(vote) {
+            if (vote >= 8) return 'green';
+            if (vote >= 5) return 'orange';
+            return 'red';
+        }
+
+        // Debounce function to limit API calls
+        function debounce(func, wait) {
+            let timeout;
+            return (...args) => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+    </script>
+</body>
+</html>
